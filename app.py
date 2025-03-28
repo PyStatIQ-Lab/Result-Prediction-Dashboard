@@ -78,7 +78,7 @@ if selected_stock:
         mode='markers+lines',
         name='Historical Earnings',
         marker=dict(size=10)
-    ))
+    )
     if next_earnings:
         fig.add_vline(x=pd.to_datetime(next_earnings), line_dash="dash", line_color="red")
     fig.update_layout(
@@ -156,9 +156,6 @@ if selected_stock:
         valid_predictions = {k: v for k, v in predictions.items() if v is not None}
         
         if valid_predictions:
-            # Create DataFrame for predictions
-            pred_df = pd.DataFrame.from_dict(valid_predictions, orient='index', columns=['Predicted Value'])
-            
             # Display predictions as metrics
             num_cols = 3
             cols = st.columns(num_cols)
@@ -170,7 +167,7 @@ if selected_stock:
                         value=f"{value:,.2f}" if isinstance(value, (int, float)) else value
                     )
             
-            # Optional: Add comparison with last historical value if available
+            # Comparison with last historical value
             if 'fundamental' in selected_stock and 'historical' in selected_stock['fundamental']:
                 st.subheader("Prediction vs Last Historical Value")
                 comparison_data = []
@@ -185,6 +182,7 @@ if selected_stock:
                                 'Last Historical': last_historical,
                                 'Predicted': valid_predictions[metric],
                                 'Change (%)': ((valid_predictions[metric] - last_historical) / last_historical * 100
+                                              if last_historical != 0 else 0)
                             })
                 
                 if comparison_data:
