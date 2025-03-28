@@ -93,13 +93,16 @@ if selected_trend != 'All':
     df = df[df['Trend'] == selected_trend]
 
 # Days until earnings filter
-days_min, days_max = st.sidebar.slider(
+days_min = int(df['Days Until Earnings'].min())
+days_max = int(df['Days Until Earnings'].max())
+days_range = st.sidebar.slider(
     'Days Until Earnings',
-    min_value=int(df['Days Until Earnings'].min()),
-    max_value=int(df['Days Until Earnings'].max()),
-    value=(int(df['Days Until Earnings'].min()), int(df['Days Until Earnings'].max())))
-df = df[(df['Days Until Earnings'] >= days_min) & 
-        (df['Days Until Earnings'] <= days_max)]
+    min_value=days_min,
+    max_value=days_max,
+    value=(days_min, days_max)
+)
+df = df[(df['Days Until Earnings'] >= days_range[0]) & 
+        (df['Days Until Earnings'] <= days_range[1])]
 
 # Main display
 st.header('Filtered Stock Data')
