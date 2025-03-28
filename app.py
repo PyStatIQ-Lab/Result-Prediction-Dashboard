@@ -147,6 +147,69 @@ if selected_stock:
             for i, (metric, value) in enumerate(latest_values.items()):
                 cols[i].metric(metric, f"{value:,.2f}")
     
+    # Predictions section
+    if 'fundamental' in selected_stock and 'predictions' in selected_stock['fundamental']:
+        st.subheader("Financial Predictions")
+        predictions = selected_stock['fundamental']['predictions']
+        
+        # Filter out null values
+        valid_predictions = {k: v for k, v in predictions.items() if v is not None}
+        
+        if valid_predictions:
+            # Create DataFrame for predictions
+            pred_df = pd.DataFrame.from_dict(valid_predictions, orient='index', columns=['Predicted Value'])
+            
+            # Display predictions as metrics
+            num_cols = 3
+            cols = st.columns(num_cols)
+            
+            for i, (metric, value) in enumerate(valid_predictions.items()):
+                with cols[i % num_cols]:
+                    st.metric(
+                        label=metric,
+                        value=f"{value:,.2f}" if isinstance(value, (int, float)) else value
+                    )
+            
+            # Optional: Add comparison with last historical value if available
+            if 'fundamental' in selected_stock and 'historical' in selected_stock['fundamental']:
+                st.subheader("Prediction vs Last Historical Value")
+                comparison_data = []
+                
+                for metric in valid_predictions.keys():
+                    if metric in selected_stock['fundamental']['historical']:
+                        historical_values = selected_stock['fundamental']['historical'][metric]
+                        if historical_values:
+                            last_historical = list(historical_values.values())[-1]
+                            comparison_data.append({
+                                'Metric': metric,
+                                'Last Historical': last_historical,
+                                'Predicted': valid_predictions[metric],
+                                'Change (%)': ((valid_predictions[metric] - last_historical) / last_historical * 100
+                            })
+                
+                if comparison_data:
+                    comparison_df = pd.DataFrame(comparison_data)
+                    
+                    # Plot comparison
+                    fig = go.Figure()
+                    for metric in comparison_df['Metric']:
+                        row = comparison_df[comparison_df['Metric'] == metric].iloc[0]
+                        fig.add_trace(go.Bar(
+                            name=metric,
+                            x=['Last Historical', 'Predicted'],
+                            y=[row['Last Historical'], row['Predicted']],
+                            text=[f"{row['Last Historical']:,.2f}", f"{row['Predicted']:,.2f}"],
+                            textposition='auto'
+                        ))
+                    
+                    fig.update_layout(
+                        barmode='group',
+                        title="Comparison of Last Historical and Predicted Values",
+                        yaxis_title="Value",
+                        height=400
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+    
     # Error display if present
     if 'error' in selected_stock and selected_stock['error']:
         st.error(f"Error in data processing: {selected_stock['error']}")
