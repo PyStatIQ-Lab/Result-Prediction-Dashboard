@@ -22,7 +22,7 @@ for symbol, stock_data in data.items():
             'Next Earnings': stock_data['earnings']['next_earnings_prediction'],
             'Confidence Score': stock_data['earnings']['prediction_metadata']['confidence_score']
         })
-    except:
+    except Exception as e:
         continue
 
 df = pd.DataFrame(stocks)
@@ -68,40 +68,37 @@ if selected_stock:
     col2.metric("Confidence Score", f"{confidence}%")
     
     # Earnings history chart
-     earnings_dates = pd.to_datetime(selected_stock['earnings']['historical_dates'])
-     intervals = selected_stock['earnings']['prediction_metadata']['day_intervals']
-
-     fig = go.Figure()
-     fig.add_trace(go.Scatter(
-         x=earnings_dates,
-         y=[1]*len(earnings_dates),
-         mode='markers+lines',
-         name='Historical Earnings',
-         marker=dict(size=10)
-    ))  # ✅ Properly closed
-
-    if next_earnings:
-         fig.add_vline(x=pd.to_datetime(next_earnings), line_dash="dash", line_color="red")
-
-    fig.update_layout(
-        title="Earnings Dates History",
-        xaxis_title="Date",
-        yaxis=dict(showticklabels=False),
-        height=300
-    )
-
-st.plotly_chart(fig, use_container_width=True)
-
-
+    st.subheader("Earnings Dates History")
+    try:
+        earnings_dates = pd.to_datetime(selected_stock['earnings']['historical_dates'])
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=earnings_dates,
+            y=[1] * len(earnings_dates),
+            mode='markers+lines',
+            name='Historical Earnings',
+            marker=dict(size=10)
+        ))
+        if next_earnings:
+            fig.add_vline(x=pd.to_datetime(next_earnings), line_dash="dash", line_color="red")
+        fig.update_layout(
+            xaxis_title="Date",
+            yaxis=dict(showticklabels=False),
+            height=300
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.warning("Unable to display earnings history chart.")
+    
     # Technical indicators
     st.subheader("Technical Indicators")
-    
     col1, col2, col3 = st.columns(3)
     col1.metric("RSI", round(selected_stock['technical']['rsi'], 2))
     col2.metric("20-day MA", round(selected_stock['technical']['ma_20'], 2))
     col3.metric("50-day MA", round(selected_stock['technical']['ma_50'], 2))
-    
+
     # MACD chart
+    st.subheader("MACD Indicator")
     macd_fig = go.Figure()
     macd_fig.add_trace(go.Scatter(
         y=[selected_stock['technical']['macd_line']],
@@ -113,20 +110,13 @@ st.plotly_chart(fig, use_container_width=True)
         name='Signal Line',
         mode='lines'
     ))
-    macd_fig.update_layout(
-        title="MACD Indicator",
-        height=300
-    )
+    macd_fig.update_layout(height=300)
     st.plotly_chart(macd_fig, use_container_width=True)
-    
+
     # Fundamental analysis
     st.subheader("Fundamental Analysis")
-    
-    # Revenue and profit metrics
     if 'fundamental' in selected_stock and 'historical' in selected_stock['fundamental']:
         fundamental = selected_stock['fundamental']['historical']
-        
-        # Convert to DataFrame
         metrics = ['Total Revenue', 'Gross Profit', 'Operating Income', 'Net Income']
         fundamental_df = pd.DataFrame()
         
@@ -137,88 +127,75 @@ st.plotly_chart(fig, use_container_width=True)
                 fundamental_df = pd.concat([fundamental_df, temp_df], axis=1)
         
         if not fundamental_df.empty:
-            # Plot revenue and profit trends
             fig = px.line(fundamental_df, x=fundamental_df.index, y=fundamental_df.columns,
-                         title="Revenue and Profit Trends")
+                          title="Revenue and Profit Trends")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Latest values
             latest_date = fundamental_df.index.max()
             latest_values = fundamental_df.loc[latest_date]
-            
             st.write(f"Latest Values (as of {latest_date.date()})")
             cols = st.columns(len(latest_values))
             for i, (metric, value) in enumerate(latest_values.items()):
                 cols[i].metric(metric, f"{value:,.2f}")
-    
-    # Predictions section
+
+    # Predictions
     if 'fundamental' in selected_stock and 'predictions' in selected_stock['fundamental']:
         st.subheader("Financial Predictions")
         predictions = selected_stock['fundamental']['predictions']
-        
-        # Filter out null values
         valid_predictions = {k: v for k, v in predictions.items() if v is not None}
-        
+
         if valid_predictions:
-            # Display predictions as metrics
-            num_cols = 3
-            cols = st.columns(num_cols)
-            
+            cols = st.columns(3)
             for i, (metric, value) in enumerate(valid_predictions.items()):
-                with cols[i % num_cols]:
+                with cols[i % 3]:
                     st.metric(
                         label=metric,
                         value=f"{value:,.2f}" if isinstance(value, (int, float)) else value
                     )
-            
-            # Comparison with last historical value
-            if 'fundamental' in selected_stock and 'historical' in selected_stock['fundamental']:
-                st.subheader("Prediction vs Last Historical Value")
-                comparison_data = []
-                
-                for metric in valid_predictions.keys():
-                    if metric in selected_stock['fundamental']['historical']:
-                        historical_values = selected_stock['fundamental']['historical'][metric]
-                        if historical_values:
-                            last_historical = list(historical_values.values())[-1]
-                            comparison_data.append({
-                                'Metric': metric,
-                                'Last Historical': last_historical,
-                                'Predicted': valid_predictions[metric],
-                                'Change (%)': ((valid_predictions[metric] - last_historical) / last_historical * 100
-                                              if last_historical != 0 else 0)
-                            })
-                
-                if comparison_data:
-                    comparison_df = pd.DataFrame(comparison_data)
-                    
-                    # Plot comparison
-                    fig = go.Figure()
-                    for metric in comparison_df['Metric']:
-                        row = comparison_df[comparison_df['Metric'] == metric].iloc[0]
-                        fig.add_trace(go.Bar(
-                            name=metric,
-                            x=['Last Historical', 'Predicted'],
-                            y=[row['Last Historical'], row['Predicted']],
-                            text=[f"{row['Last Historical']:,.2f}", f"{row['Predicted']:,.2f}"],
-                            textposition='auto'
-                        ))
-                    
-                    fig.update_layout(
-                        barmode='group',
-                        title="Comparison of Last Historical and Predicted Values",
-                        yaxis_title="Value",
-                        height=400
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-    
-    # Error display if present
+
+            # Comparison with last historical
+            st.subheader("Prediction vs Last Historical Value")
+            comparison_data = []
+            for metric in valid_predictions:
+                if metric in selected_stock['fundamental']['historical']:
+                    historical_values = selected_stock['fundamental']['historical'][metric]
+                    if historical_values:
+                        last_historical = list(historical_values.values())[-1]
+                        predicted = valid_predictions[metric]
+                        change_pct = ((predicted - last_historical) / last_historical * 100
+                                      if last_historical != 0 else 0)
+                        comparison_data.append({
+                            'Metric': metric,
+                            'Last Historical': last_historical,
+                            'Predicted': predicted,
+                            'Change (%)': change_pct
+                        })
+
+            if comparison_data:
+                comparison_df = pd.DataFrame(comparison_data)
+                fig = go.Figure()
+                for i, row in comparison_df.iterrows():
+                    fig.add_trace(go.Bar(
+                        name=row['Metric'],
+                        x=['Last Historical', 'Predicted'],
+                        y=[row['Last Historical'], row['Predicted']],
+                        text=[f"{row['Last Historical']:,.2f}", f"{row['Predicted']:,.2f}"],
+                        textposition='auto'
+                    ))
+                fig.update_layout(
+                    barmode='group',
+                    title="Comparison of Last Historical and Predicted Values",
+                    yaxis_title="Value",
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
     if 'error' in selected_stock and selected_stock['error']:
         st.error(f"Error in data processing: {selected_stock['error']}")
 else:
-    st.warning("No data available for selected stock")
+    st.warning("No data available for selected stock.")
 
-# Add some styling
+# Add custom styling
 st.markdown("""
 <style>
     .stMetric {
