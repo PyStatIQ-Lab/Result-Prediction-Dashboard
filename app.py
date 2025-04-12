@@ -68,27 +68,31 @@ if selected_stock:
     col2.metric("Confidence Score", f"{confidence}%")
     
     # Earnings history chart
-    earnings_dates = pd.to_datetime(selected_stock['earnings']['historical_dates'])
-    intervals = selected_stock['earnings']['prediction_metadata']['day_intervals']
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=earnings_dates,
-        y=[1]*len(earnings_dates),
-        mode='markers+lines',
-        name='Historical Earnings',
-        marker=dict(size=10)
-    )
+     earnings_dates = pd.to_datetime(selected_stock['earnings']['historical_dates'])
+     intervals = selected_stock['earnings']['prediction_metadata']['day_intervals']
+
+     fig = go.Figure()
+     fig.add_trace(go.Scatter(
+         x=earnings_dates,
+         y=[1]*len(earnings_dates),
+         mode='markers+lines',
+         name='Historical Earnings',
+         marker=dict(size=10)
+    ))  # ✅ Properly closed
+
     if next_earnings:
-        fig.add_vline(x=pd.to_datetime(next_earnings), line_dash="dash", line_color="red")
+         fig.add_vline(x=pd.to_datetime(next_earnings), line_dash="dash", line_color="red")
+
     fig.update_layout(
         title="Earnings Dates History",
         xaxis_title="Date",
         yaxis=dict(showticklabels=False),
         height=300
     )
-    st.plotly_chart(fig, use_container_width=True)
-    
+
+st.plotly_chart(fig, use_container_width=True)
+
+
     # Technical indicators
     st.subheader("Technical Indicators")
     
